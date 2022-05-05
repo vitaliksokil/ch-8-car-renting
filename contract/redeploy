@@ -1,0 +1,4 @@
+near delete main.car-renting.testnet car-renting.testnet && \
+near create-account main.car-renting.testnet --masterAccount car-renting.testnet && \
+./build.sh && near deploy main.car-renting.testnet --wasmFile res/car_renting.wasm && \
+near call main.car-renting.testnet new '{}' --accountId main.car-renting.testnet
