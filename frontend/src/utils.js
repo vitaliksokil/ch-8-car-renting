@@ -2,7 +2,8 @@ import getConfig from './config.js';
 import * as nearAPI from 'near-api-js';
 
 window.nearConfig = getConfig(process.env.VUE_APP_NEAR_ENV || 'testnet');
-
+window.roketoWrapContractName = 'wrap.testnet'
+window.roketoContractName = 'streaming-r-v2.dcversus.testnet'
 async function init() {
 
     // create a keyStore for signing transactions using the user's key

@@ -15,8 +15,8 @@
         <img class="my-4" width="350" :src="image"/>
       </div>
       <div class="mb-3">
-        <label for="price_per_hour" class="form-label">Price per hour</label>
-        <input type="text" class="form-control" id="price_per_hour" placeholder="Ⓝ" v-model="price_per_hour">
+        <label for="price_per_month" class="form-label">Price per month</label>
+        <input type="text" class="form-control" id="price_per_month" placeholder="Ⓝ" v-model="price_per_month">
       </div>
 
       <button type="submit" class="btn btn-primary">Submit</button>
@@ -37,7 +37,7 @@ export default {
       title:"",
       description:"",
       image:"",
-      price_per_hour:"",
+      price_per_month:"",
     }
   },
   methods:{
@@ -50,7 +50,7 @@ export default {
           title:this.title,
           description:this.description,
           image:this.image,
-          price_per_hour:Big(this.price_per_hour).times(10 ** 24).toFixed(),
+          price_per_month:Big(this.price_per_month).times(10 ** 24).toFixed(),
         },
         gas:BOATLOAD_OF_GAS,
         walletCallbackUrl: window.location.href
@@ -64,7 +64,7 @@ export default {
         this.title = "";
         this.description = "";
         this.image = "";
-        this.price_per_hour = "";
+        this.price_per_month = "";
       });
       loader.hide();
     },

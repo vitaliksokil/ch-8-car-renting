@@ -8,47 +8,25 @@
       </div>
       <ul class="list-group list-group-flush">
         <li class="list-group-item d-flex justify-content-between"><span>Owner:</span><span>{{owner_id}}</span></li>
-        <li class="list-group-item d-flex justify-content-between"><span>Price per hour:</span><span>{{$filters.formatYoctoNearToNear(price_per_hour)}} Ⓝ</span></li>
+        <li class="list-group-item d-flex justify-content-between"><span>Price per month:</span><span>{{$filters.formatYoctoNearToNear(price_per_month)}} Ⓝ</span></li>
       </ul>
       <router-link :to="{name:'car-single',params:{id:id}}" class="btn btn-primary">Go to car page</router-link>
+      <div v-if="is_rent">
+        <hr>
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item d-flex justify-content-between"><span>Already paid:</span><span>{{$filters.formatYoctoNearToNear(alreadyPaid)}} Ⓝ</span></li>
+        </ul>
+        <button class="btn btn-danger w-100" @click.prevent="startCancelRentCarProcess">Cancel renting</button>
+      </div>
 
     </div>
   </div>
-<!--  <div class="col-md-4">-->
-<!--    <div class="cause shadow-sm">-->
-<!--      <router-link-->
-<!--          :to="{name:'meeting-single',params:{id:id}}"-->
-<!--          custom-->
-<!--          v-slot="{ href, navigate }">-->
-<!--        <a :href="href" @click="navigate" class="cause-link d-block">-->
-<!--          <img :src="image" alt="Image" class="img-fluid" style="height: 250px;width: 100%">-->
-<!--          <custom-progress-bar :current-value="currentValue" :max-value="maxValue"></custom-progress-bar>-->
-<!--        </a>-->
-<!--      </router-link>-->
-
-<!--      <div class="px-3 pt-3 border-top-0 border border shadow-sm">-->
-<!--        <span class="py-1 small px-2 rounded mb-3 d-inline-block" :class="className"><font-awesome-icon-->
-<!--            :icon="iconName"/> {{ donationType }}</span>-->
-<!--        <h3 class="mb-4">-->
-<!--          <router-link :to="{name:'meeting-single',params:{id:id}}">{{ title }}</router-link>-->
-<!--        </h3>-->
-<!--        <div class="border-top border-light border-bottom py-2 d-flex justify-content-between">-->
-<!--          <div>Ticket price</div>-->
-<!--          <div class="ml-auto"><strong class="text-success">{{ $filters.formatTicketPrice( ticketPrice )}} Ⓝ</strong></div>-->
-<!--        </div>-->
-
-<!--        <div class="py-4">-->
-<!--          <div class="d-flex align-items-center">-->
-<!--            <div class="">Author: <span class="badge bg-primary p-2">{{ author }}</span></div>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
-
-<!--    </div>-->
-<!--  </div>-->
 </template>
 
 <script>
+
+import {getTransactionState, getUrlParams} from "../../../helpers";
+import Big from "big.js";
 
 export default {
   name: "CarListItemComponent",
@@ -58,8 +36,77 @@ export default {
     'description',
     'image',
     'owner_id',
-    'price_per_hour',
+    'price_per_month',
+    'is_rent',
+    'stream_id',
+    'rent',
   ],
+  methods:{
+
+    async continueCancelRentCarProcess() {
+      let loader = this.$loading.show();
+      let params = getUrlParams();
+      let transactionHashes = params.get('transactionHashes');
+      if (transactionHashes !== null){
+        let result = await getTransactionState(transactionHashes);
+        if ("SuccessValue" in result.status){
+          const transactionMethodName = result.transaction.actions[0].FunctionCall.method_name;
+          switch (transactionMethodName){
+            case 'stop_stream':
+              this.$swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: 'Car rent was canceled!',
+                footer: ``,
+              })
+              this.cleanGetParams();
+              break;
+
+          }
+        }
+      }
+      loader.hide();
+    },
+    cleanGetParams(){
+      window.history.pushState({}, document.title, process.env.VUE_APP_APP_URL + '#' + this.$route.fullPath);
+    },
+    async startCancelRentCarProcess(){
+      let loader = this.$loading.show();
+      window.walletConnection.account().functionCall({
+        contractId: window.nearConfig.contractName,
+        methodName: 'stop_rent_car',
+        args: {"car_id": +this.id},
+        gas:"200000000000000",
+      }).then((response)=>{
+        window.walletConnection.account().functionCall({
+          contractId: window.roketoContractName,
+          methodName: 'stop_stream',
+          args: {"stream_id": this.stream_id},
+          gas:"200000000000000",
+          attachedDeposit:1,
+        }).then((response)=>{
+          console.log(response)
+        });
+      });
+      loader.hide();
+    },
+  },
+  async mounted() {
+    let loader = this.$loading.show();
+    await this.continueCancelRentCarProcess()
+    loader.hide()
+  },
+  computed:{
+    alreadyPaid(){
+      let currentTimestamp = (+ new Date());
+      console.log(currentTimestamp)
+      let rentTimestamp = new Date;
+      rentTimestamp.setTime(this.rent.timestamp_created.toString().substring(0,13));
+      console.log(+rentTimestamp)
+      let secondsLeft = ((currentTimestamp - rentTimestamp) / 1000).toFixed();
+      return secondsLeft * this.rent.tokens_per_sec;
+    }
+  }
 
 }
 </script>

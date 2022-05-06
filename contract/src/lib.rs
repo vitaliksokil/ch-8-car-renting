@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use near_sdk::{PromiseOrValue, Promise, near_bindgen, PanicOnDefault, BorshStorageKey, AccountId, borsh::{self, BorshDeserialize, BorshSerialize}, serde::{Deserialize, Serialize}, env, log};
 use near_sdk::collections::{LazyOption, UnorderedMap};
+use near_sdk::json_types::Base58CryptoHash;
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Debug, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -9,15 +10,31 @@ pub struct Car {
     title: String,
     description: String,
     image:String,
-    price_per_hour: u128,
+    price_per_month: u128,
     is_rented: bool,
 }
+
+
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Debug, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct Rent{
+    renter_id: AccountId,
+    stream_id: Base58CryptoHash
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Debug, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct RentedCar{
+    car: Car,
+    rent: Rent
+}
+
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
     pub cars: UnorderedMap<u8, Car>,
-    pub rents: UnorderedMap<u8, AccountId>, // id of car -> id of person who rented it.
+    pub rents: UnorderedMap<u8, Rent>, // id of car -> id of person who rented it.
     pub total_cars: u8, // id of car -> id of person who rented it.
 }
 
@@ -52,25 +69,25 @@ impl Contract {
         result
     }
 
-    pub fn get_rents_by_renter_id(&self, renter_account_id: AccountId) -> HashMap<u8, Car>{
-        let all_rents: HashMap<u8, AccountId> = self.rents.iter().collect();
-        let mut result: HashMap<u8, Car> = HashMap::new();
+    pub fn get_rents_by_renter_id(&self, renter_account_id: AccountId) -> HashMap<u8, RentedCar>{
+        let all_rents: HashMap<u8, Rent> = self.rents.iter().collect();
+        let mut result: HashMap<u8, RentedCar> = HashMap::new();
         for (key, val) in all_rents.iter() {
-            if *val == renter_account_id {
-                result.insert(*key, self.get_car_by_id(*key).clone());
+            if val.renter_id == renter_account_id {
+                result.insert(*key, RentedCar{ car: self.get_car_by_id(*key).clone(), rent: val.clone() });
             }
         }
         result
     }
 
 
-    pub fn rent_car(&mut self, car_id:u8) {
+    pub fn rent_car(&mut self, car_id:u8, stream_id: Base58CryptoHash) {
         let mut car: Car = self.cars.get(&car_id).expect("Car doesn't exist");
         let renter_id: AccountId = env::predecessor_account_id();
         car.is_rented = true;
         self.cars.remove(&car_id);
         self.cars.insert(&car_id, &car);
-        self.rents.insert(&car_id, &renter_id);
+        self.rents.insert(&car_id, &Rent{ renter_id, stream_id });
     }
 
     pub fn stop_rent_car(&mut self, car_id:u8) {
@@ -87,9 +104,9 @@ impl Contract {
         title: String,
         description: String,
         image:String,
-        price_per_hour: String,
+        price_per_month: String,
     ) {
-        let price_u128:u128 = price_per_hour.parse::<u128>().unwrap();
+        let price_u128:u128 = price_per_month.parse::<u128>().unwrap();
 
         assert!(title != "", "Abort. Title is empty");
         assert!(description != "", "Abort. Description is empty");
@@ -106,7 +123,7 @@ impl Contract {
                 title,
                 description,
                 image,
-                price_per_hour: price_u128,
+                price_per_month: price_u128,
                 is_rented: false
             },
         );

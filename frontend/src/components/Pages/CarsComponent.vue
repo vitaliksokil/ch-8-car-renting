@@ -9,7 +9,7 @@
                                  :description="car.description"
                                  :image="car.image"
                                  :owner_id="car.owner_id"
-                                 :price_per_hour="car.price_per_hour"
+                                 :price_per_month="car.price_per_month"
         >
 
         </car-list-item-component>
